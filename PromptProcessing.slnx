@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="PromptProcessing.Api/PromptProcessing.Api.csproj" />
+  <Project Path="PromptProcessing.Application/PromptProcessing.Application.csproj" />
+  <Project Path="PromptProcessing.Contracts/PromptProcessing.Contracts.csproj" />
+  <Project Path="PromptProcessing.Domain/PromptProcessing.Domain.csproj" />
+  <Project Path="PromptProcessing.Infrastructure/PromptProcessing.Infrastructure.csproj" />
+  <Project Path="PromptProcessing.Worker/PromptProcessing.Worker.csproj" />
+</Solution>

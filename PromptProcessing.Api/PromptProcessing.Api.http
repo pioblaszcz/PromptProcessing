@@ -1,0 +1,18 @@
+@PromptProcessing.Api_HostAddress = http://localhost:5158
+
+POST {{PromptProcessing.Api_HostAddress}}/api/prompt-jobs
+Content-Type: application/json
+
+{
+  "prompts": [
+    "Summarize the benefits of asynchronous processing.",
+    "Write three interview questions for a C# developer."
+  ]
+}
+
+###
+
+GET {{PromptProcessing.Api_HostAddress}}/api/prompt-jobs
+Accept: application/json
+
+###
