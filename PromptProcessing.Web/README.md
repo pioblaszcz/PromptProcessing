@@ -1,28 +1,19 @@
 # PromptProcessing.Web
 
-Frontend Next.js dla systemu Prompt Processing.
+Next.js frontend for Prompt Processing.
 
-## Uruchomienie lokalne
+For the complete project setup, Docker Compose workflow, API details and validation commands, see the [root README](../README.md).
 
-Utwórz plik `.env` na podstawie `.env.example` i ustaw adres lokalnego API:
+## Local frontend development
+
+Create `.env` from `.env.example` and set:
 
 ```text
 NEXT_PUBLIC_API_URL=https://localhost:7053
 ```
 
-Następnie uruchom:
+Then run:
 
 ```powershell
 npm run dev
 ```
-
-Aplikacja jest dostępna pod adresem http://localhost:3000.
-
-## Weryfikacja
-
-```powershell
-npm run lint
-npm run build
-```
-
-Do pełnego uruchomienia systemu zobacz główny [README](../README.md).
