@@ -12,7 +12,12 @@ Content-Type: application/json
 
 ###
 
-GET {{PromptProcessing.Api_HostAddress}}/api/prompt-jobs
+GET {{PromptProcessing.Api_HostAddress}}/api/prompt-jobs?take=20
+Accept: application/json
+
+###
+
+GET {{PromptProcessing.Api_HostAddress}}/api/prompt-jobs/status?ids=00000000-0000-0000-0000-000000000000
 Accept: application/json
 
 ###

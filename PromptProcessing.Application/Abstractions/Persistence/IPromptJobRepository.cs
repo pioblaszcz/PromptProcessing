@@ -6,5 +6,6 @@ public interface IPromptJobRepository
 {
     Task AddRangeAsync(IEnumerable<PromptJob> promptJobs, CancellationToken cancellationToken);
     Task<PromptJob?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
-    Task<IReadOnlyCollection<PromptJob>> GetAllAsync(CancellationToken cancellationToken);
+    Task<IReadOnlyCollection<PromptJob>> GetPageAsync(int take, DateTime? createdBeforeUtc, Guid? id, CancellationToken cancellationToken);
+    Task<IReadOnlyCollection<PromptJob>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken);
 }
