@@ -2,8 +2,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using PromptProcessing.Application.Abstractions.AI;
 using PromptProcessing.Application.Abstractions.Messaging;
 using PromptProcessing.Application.Abstractions.Persistence;
+using PromptProcessing.Infrastructure.AI;
 using PromptProcessing.Infrastructure.Messaging;
 using PromptProcessing.Infrastructure.Persistence;
 using PromptProcessing.Infrastructure.Persistence.Repositories;
@@ -28,6 +30,25 @@ public static class DependencyInjection
         services.AddDbContext<ApplicationDbContext>(options => options.UseNpgsql(connectionString));
         services.AddScoped<IPromptJobRepository, PromptJobRepository>();
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<ApplicationDbContext>());
+
+        return services;
+    }
+
+    public static IServiceCollection AddOllama(this IServiceCollection services, IConfiguration configuration)
+    {
+        var configurationSection = configuration.GetSection(OllamaOptions.SectionName);
+        var options = new OllamaOptions
+        {
+            BaseUrl = configurationSection["BaseUrl"] ?? string.Empty,
+            Model = configurationSection["Model"] ?? string.Empty
+        };
+
+        if (string.IsNullOrWhiteSpace(options.BaseUrl) || string.IsNullOrWhiteSpace(options.Model))
+            throw new InvalidOperationException("Ollama BaseUrl and Model must be configured.");
+
+        services.AddSingleton(options);
+        services.AddSingleton(new OllamaSharp.OllamaApiClient(new Uri(options.BaseUrl), options.Model));
+        services.AddSingleton<ITextGenerationService, OllamaTextGenerationService>();
 
         return services;
     }

@@ -5,6 +5,7 @@ using PromptProcessing.Worker.Consumers;
 var builder = Host.CreateApplicationBuilder(args);
 
 builder.Services.AddInfrastructurePersistence(builder.Configuration);
+builder.Services.AddOllama(builder.Configuration);
 
 builder.Services.AddMassTransit(configurator =>
 {
