@@ -1,8 +1,13 @@
 import type { PromptJob, PromptJobStatus } from "@/lib/prompt-jobs.types";
+import { useInfiniteScroll } from "@/features/prompt-jobs/hooks/use-infinite-scroll";
 
 type PromptJobsQueueProps = {
   errorMessage: string | null;
+  hasMore: boolean;
   isLoading: boolean;
+  isLoadingMore: boolean;
+  loadMoreErrorMessage: string | null;
+  onLoadMore: () => void;
   promptJobs: PromptJob[];
 };
 
@@ -18,7 +23,21 @@ const dateTimeFormatter = new Intl.DateTimeFormat("pl-PL", {
   timeStyle: "short",
 });
 
-export function PromptJobsQueue({ errorMessage, isLoading, promptJobs }: PromptJobsQueueProps) {
+export function PromptJobsQueue({
+  errorMessage,
+  hasMore,
+  isLoading,
+  isLoadingMore,
+  loadMoreErrorMessage,
+  onLoadMore,
+  promptJobs,
+}: PromptJobsQueueProps) {
+  const loadMoreTriggerRef = useInfiniteScroll({
+    hasMore,
+    isLoading: isLoadingMore,
+    onLoadMore,
+  });
+
   return (
     <section className="workspace-panel queue-panel" aria-labelledby="queue-heading">
       <div className="panel-index" aria-hidden="true">02</div>
@@ -53,6 +72,17 @@ export function PromptJobsQueue({ errorMessage, isLoading, promptJobs }: PromptJ
               </li>
             ))}
           </ul>
+        )}
+        {!isLoading && (hasMore || isLoadingMore || loadMoreErrorMessage) && (
+          <div className="pagination" ref={loadMoreTriggerRef}>
+            {isLoadingMore && <p className="pagination-loading" role="status">Ładowanie kolejnych zadań…</p>}
+            {loadMoreErrorMessage && (
+              <div className="pagination-error">
+                <p className="pagination-message" role="alert">{loadMoreErrorMessage}</p>
+                <button className="secondary-button" onClick={onLoadMore} type="button">Spróbuj ponownie</button>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </section>

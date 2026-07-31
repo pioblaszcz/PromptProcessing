@@ -10,6 +10,11 @@ services:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d prompt_processing"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
 
   rabbitmq:
     image: rabbitmq:4-management
@@ -22,6 +27,11 @@ services:
       - "15672:15672"
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
 
   ollama:
     image: ollama/ollama:latest
@@ -46,6 +56,69 @@ services:
         condition: service_healthy
     command: ["pull", "llama3.2:1b"]
     restart: "no"
+
+  migrator:
+    build:
+      context: .
+      dockerfile: PromptProcessing.Api/Dockerfile
+    command: ["--migrate"]
+    environment:
+      ConnectionStrings__Database: Host=postgres;Port=5432;Database=prompt_processing;Username=postgres;Password=postgres
+      ConnectionStrings__RabbitMq: rabbitmq://rabbitmq/
+      Frontend__BaseUrl: http://localhost:3000
+      HttpsRedirection__Enabled: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: PromptProcessing.Api/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Database: Host=postgres;Port=5432;Database=prompt_processing;Username=postgres;Password=postgres
+      ConnectionStrings__RabbitMq: rabbitmq://rabbitmq/
+      Frontend__BaseUrl: http://localhost:3000
+      HttpsRedirection__Enabled: "false"
+    ports:
+      - "8080:8080"
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: PromptProcessing.Worker/Dockerfile
+    environment:
+      ConnectionStrings__Database: Host=postgres;Port=5432;Database=prompt_processing;Username=postgres;Password=postgres
+      ConnectionStrings__RabbitMq: rabbitmq://rabbitmq/
+      Ollama__BaseUrl: http://ollama:11434
+      Ollama__Model: llama3.2:1b
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+      ollama-model:
+        condition: service_completed_successfully
+
+  web:
+    build:
+      context: .
+      dockerfile: PromptProcessing.Web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8080
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_started
 
 volumes:
   postgres-data:

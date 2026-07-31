@@ -1,8 +1,10 @@
 using System.Text.Json.Serialization;
+using Microsoft.EntityFrameworkCore;
 using PromptProcessing.Api.ExceptionHandling;
 using PromptProcessing.Api.Pagination;
 using PromptProcessing.Application;
 using PromptProcessing.Infrastructure;
+using PromptProcessing.Infrastructure.Persistence;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -36,11 +38,24 @@ builder.Services
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 builder.Services.AddOpenApi();
+builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
+if (args.Contains("--migrate", StringComparer.OrdinalIgnoreCase))
+{
+    using var scope = app.Services.CreateScope();
+    var databaseContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+    await databaseContext.Database.MigrateAsync();
+    return;
+}
+
 app.UseExceptionHandler();
-app.UseHttpsRedirection();
+
+if (builder.Configuration.GetValue<bool?>("HttpsRedirection:Enabled") ?? true)
+    app.UseHttpsRedirection();
+
 app.UseCors("Frontend");
 
 if (app.Environment.IsDevelopment())
@@ -50,5 +65,6 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapControllers();
+app.MapHealthChecks("/health");
 
 app.Run();

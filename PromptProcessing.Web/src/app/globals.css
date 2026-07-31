@@ -190,6 +190,51 @@ textarea {
   margin: 44px 0 0;
 }
 
+.pagination {
+  min-height: 1px;
+  padding-top: 16px;
+}
+
+.secondary-button {
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 14px;
+}
+
+.secondary-button:not(:disabled):hover {
+  border-color: var(--muted-ink);
+}
+
+.secondary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.pagination-message {
+  color: #f2a7a7;
+  font-size: 13px;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.pagination-loading {
+  color: var(--muted-ink);
+  font-size: 13px;
+  margin: 0;
+  text-align: center;
+}
+
+.pagination-error {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
 .prompt-jobs-list {
   display: flex;
   flex-direction: column;
