@@ -59,7 +59,7 @@ public class PromptJobTests
         var after = DateTime.UtcNow;
         Assert.Equal(PromptJobStatus.Processing, promptJob.Status);
         Assert.InRange(promptJob.ProcessingStartedAtUtc!.Value, before, after);
-        Assert.Equal(1, promptJob.AttemptCount);
+        Assert.Equal(0, promptJob.AttemptCount);
         Assert.Null(promptJob.Result);
         Assert.Null(promptJob.ErrorMessage);
         Assert.Null(promptJob.CompletedAtUtc);
@@ -72,6 +72,25 @@ public class PromptJobTests
         promptJob.StartProcessing();
 
         Assert.Throws<InvalidOperationException>(() => promptJob.StartProcessing());
+    }
+
+    [Fact]
+    public void RegisterAttempt_ProcessingJob_IncrementsAttemptCount()
+    {
+        var promptJob = CreateProcessingJob();
+
+        promptJob.RegisterAttempt();
+        promptJob.RegisterAttempt();
+
+        Assert.Equal(2, promptJob.AttemptCount);
+    }
+
+    [Fact]
+    public void RegisterAttempt_NonProcessingJob_ThrowsInvalidOperationException()
+    {
+        var promptJob = PromptJob.Create("Explain message queues.");
+
+        Assert.Throws<InvalidOperationException>(() => promptJob.RegisterAttempt());
     }
 
     [Fact]

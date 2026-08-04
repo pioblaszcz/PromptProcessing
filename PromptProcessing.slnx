@@ -7,4 +7,5 @@
   <Project Path="PromptProcessing.Domain.Tests/PromptProcessing.Domain.Tests.csproj" />
   <Project Path="PromptProcessing.Infrastructure/PromptProcessing.Infrastructure.csproj" />
   <Project Path="PromptProcessing.Worker/PromptProcessing.Worker.csproj" />
+  <Project Path="PromptProcessing.Worker.Tests/PromptProcessing.Worker.Tests.csproj" />
 </Solution>

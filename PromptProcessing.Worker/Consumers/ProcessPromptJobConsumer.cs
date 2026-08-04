@@ -4,6 +4,7 @@ using PromptProcessing.Application.Abstractions.AI;
 using PromptProcessing.Application.Abstractions.Persistence;
 using PromptProcessing.Contracts.PromptJobs;
 using PromptProcessing.Domain.PromptJobs;
+using PromptProcessing.Worker;
 
 namespace PromptProcessing.Worker.Consumers;
 
@@ -23,16 +24,22 @@ public class ProcessPromptJobConsumer(
             return;
         }
 
-        if (promptJob.Status != PromptJobStatus.Pending)
+        if (promptJob.Status is PromptJobStatus.Completed or PromptJobStatus.Failed)
         {
-            logger.LogInformation("Prompt job {PromptJobId} has status {Status} and will not be processed.", promptJob.Id, promptJob.Status);
+            logger.LogInformation("Prompt job {PromptJobId} has terminal status {Status} and will not be processed.", promptJob.Id, promptJob.Status);
             return;
         }
 
-        promptJob.StartProcessing();
-        await unitOfWork.SaveChangesAsync(context.CancellationToken);
+        if (promptJob.Status == PromptJobStatus.Pending)
+        {
+            promptJob.StartProcessing();
+            await unitOfWork.SaveChangesAsync(context.CancellationToken);
 
-        logger.LogInformation("Prompt job {PromptJobId} started processing.", promptJob.Id);
+            logger.LogInformation("Prompt job {PromptJobId} started processing.", promptJob.Id);
+        }
+
+        promptJob.RegisterAttempt();
+        await unitOfWork.SaveChangesAsync(context.CancellationToken);
 
         try
         {
@@ -46,6 +53,18 @@ public class ProcessPromptJobConsumer(
         catch (OperationCanceledException) when (context.CancellationToken.IsCancellationRequested)
         {
             throw;
+        }
+        catch (TransientTextGenerationException exception) when (!PromptGenerationRetryPolicy.IsFinalAttempt(context.GetRetryAttempt()))
+        {
+            logger.LogWarning(exception, "Prompt job {PromptJobId} encountered a transient error and will be retried.", promptJob.Id);
+            throw;
+        }
+        catch (TransientTextGenerationException exception)
+        {
+            logger.LogError(exception, "Prompt job {PromptJobId} exhausted all text-generation attempts.", promptJob.Id);
+
+            promptJob.Fail("Prompt processing failed. Please try again later.");
+            await unitOfWork.SaveChangesAsync(context.CancellationToken);
         }
         catch (Exception exception)
         {

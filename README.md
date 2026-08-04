@@ -24,6 +24,8 @@ flowchart LR
 - **Focused polling** — the frontend polls only jobs in `Pending` or `Processing` states; completed and failed jobs do not generate further status requests.
 - **Docker Compose orchestration** — the complete development stack starts with one command. A dedicated migrator container applies EF Core migrations before the API and Worker start.
 
+> **Reliability:** The worker provides at-least-once message processing with idempotent handling of terminal job states. If it fails after Ollama returns a response but before `Completed` is persisted, the response may be generated again after redelivery.
+
 ## Quick start
 
 ### Prerequisites

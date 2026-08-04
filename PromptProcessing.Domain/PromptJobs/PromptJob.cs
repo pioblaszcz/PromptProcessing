@@ -41,8 +41,15 @@ public class PromptJob
 
         Status = PromptJobStatus.Processing;
         ProcessingStartedAtUtc = DateTime.UtcNow;
-        AttemptCount++;
         ErrorMessage = null;
+    }
+
+    public void RegisterAttempt()
+    {
+        if (Status != PromptJobStatus.Processing)
+            throw new InvalidOperationException($"Prompt job with status '{Status}' cannot register an attempt.");
+
+        AttemptCount++;
     }
 
     public void Complete(string result)

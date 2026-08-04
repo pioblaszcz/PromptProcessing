@@ -1,5 +1,7 @@
 ﻿using MassTransit;
+using PromptProcessing.Application.Abstractions.AI;
 using PromptProcessing.Infrastructure;
+using PromptProcessing.Worker;
 using PromptProcessing.Worker.Consumers;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -20,6 +22,12 @@ builder.Services.AddMassTransit(configurator =>
 
         rabbitMq.ReceiveEndpoint("prompt-processing", endpoint =>
         {
+            endpoint.UseMessageRetry(retry =>
+            {
+                retry.Handle<TransientTextGenerationException>();
+                retry.Intervals(PromptGenerationRetryPolicy.RetryIntervals);
+            });
+
             endpoint.ConfigureConsumer<ProcessPromptJobConsumer>(context);
         });
     });
