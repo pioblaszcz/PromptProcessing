@@ -14,64 +14,87 @@ export function PromptJobsWorkspace() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null);
-  const [loadMoreErrorMessage, setLoadMoreErrorMessage] = useState<string | null>(null);
+  const [loadMoreErrorMessage, setLoadMoreErrorMessage] = useState<
+    string | null
+  >(null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [promptJobs, setPromptJobs] = useState<PromptJob[]>([]);
   const isLoadingMoreRef = useRef(false);
+  const loadMoreAbortControllerRef = useRef<AbortController | null>(null);
+  const refreshAbortControllerRef = useRef<AbortController | null>(null);
 
-  async function loadPromptJobs() {
-    setLoadErrorMessage(null);
-    setLoadMoreErrorMessage(null);
-    setIsLoading(true);
-
+  const loadPromptJobs = useCallback(async (signal: AbortSignal) => {
     try {
-      const page = await getPromptJobs({ take: promptJobsPageSize });
+      const page = await getPromptJobs({ signal, take: promptJobsPageSize });
+
+      if (signal.aborted) {
+        return;
+      }
+
       setPromptJobs(page.items);
       setNextCursor(page.nextCursor);
     } catch (error) {
-      setLoadErrorMessage(error instanceof Error ? error.message : "Nie udało się pobrać kolejki.");
+      if (!signal.aborted) {
+        setLoadErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Nie udało się pobrać kolejki.",
+        );
+      }
     } finally {
-      setIsLoading(false);
+      if (!signal.aborted) {
+        setIsLoading(false);
+      }
     }
-  }
+  }, []);
+
+  const refreshPromptJobs = useCallback(async () => {
+    refreshAbortControllerRef.current?.abort();
+    loadMoreAbortControllerRef.current?.abort();
+    loadMoreAbortControllerRef.current = null;
+    isLoadingMoreRef.current = false;
+
+    const controller = new AbortController();
+    refreshAbortControllerRef.current = controller;
+    setLoadErrorMessage(null);
+    setLoadMoreErrorMessage(null);
+    setIsLoading(true);
+    setIsLoadingMore(false);
+
+    await loadPromptJobs(controller.signal);
+  }, [loadPromptJobs]);
 
   useEffect(() => {
-    let isActive = true;
+    const controller = new AbortController();
+    refreshAbortControllerRef.current = controller;
 
     async function loadInitialPromptJobs() {
-      try {
-        const page = await getPromptJobs({ take: promptJobsPageSize });
-
-        if (isActive) {
-          setPromptJobs(page.items);
-          setNextCursor(page.nextCursor);
-        }
-      } catch (error) {
-        if (isActive) {
-          setLoadErrorMessage(error instanceof Error ? error.message : "Nie udało się pobrać kolejki.");
-        }
-      } finally {
-        if (isActive) {
-          setIsLoading(false);
-        }
-      }
+      await loadPromptJobs(controller.signal);
     }
 
     void loadInitialPromptJobs();
 
     return () => {
-      isActive = false;
+      controller.abort();
+      loadMoreAbortControllerRef.current?.abort();
     };
-  }, []);
+  }, [loadPromptJobs]);
 
-  const handleStatusesReceived = useCallback((updatedPromptJobs: PromptJob[]) => {
-    const updatedPromptJobsById = new Map(updatedPromptJobs.map((promptJob) => [promptJob.id, promptJob]));
+  const handleStatusesReceived = useCallback(
+    (updatedPromptJobs: PromptJob[]) => {
+      const updatedPromptJobsById = new Map(
+        updatedPromptJobs.map((promptJob) => [promptJob.id, promptJob]),
+      );
 
-    setPromptJobs((currentPromptJobs) => currentPromptJobs.map(
-      (promptJob) => updatedPromptJobsById.get(promptJob.id) ?? promptJob,
-    ));
-  }, []);
+      setPromptJobs((currentPromptJobs) =>
+        currentPromptJobs.map(
+          (promptJob) => updatedPromptJobsById.get(promptJob.id) ?? promptJob,
+        ),
+      );
+    },
+    [],
+  );
 
   usePromptJobStatusPolling({
     onStatusesReceived: handleStatusesReceived,
@@ -84,24 +107,50 @@ export function PromptJobsWorkspace() {
     }
 
     isLoadingMoreRef.current = true;
+    const controller = new AbortController();
+    loadMoreAbortControllerRef.current = controller;
     setLoadMoreErrorMessage(null);
     setIsLoadingMore(true);
 
     try {
-      const page = await getPromptJobs({ cursor: nextCursor, take: promptJobsPageSize });
+      const page = await getPromptJobs({
+        cursor: nextCursor,
+        signal: controller.signal,
+        take: promptJobsPageSize,
+      });
+
+      if (controller.signal.aborted) {
+        return;
+      }
 
       setPromptJobs((currentPromptJobs) => {
-        const existingPromptJobIds = new Set(currentPromptJobs.map((promptJob) => promptJob.id));
-        const newPromptJobs = page.items.filter((promptJob) => !existingPromptJobIds.has(promptJob.id));
+        const existingPromptJobIds = new Set(
+          currentPromptJobs.map((promptJob) => promptJob.id),
+        );
+        const newPromptJobs = page.items.filter(
+          (promptJob) => !existingPromptJobIds.has(promptJob.id),
+        );
 
         return [...currentPromptJobs, ...newPromptJobs];
       });
       setNextCursor(page.nextCursor);
     } catch (error) {
-      setLoadMoreErrorMessage(error instanceof Error ? error.message : "Nie udało się pobrać kolejnej strony.");
+      if (!controller.signal.aborted) {
+        setLoadMoreErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Nie udało się pobrać kolejnej strony.",
+        );
+      }
     } finally {
-      isLoadingMoreRef.current = false;
-      setIsLoadingMore(false);
+      if (loadMoreAbortControllerRef.current === controller) {
+        loadMoreAbortControllerRef.current = null;
+        isLoadingMoreRef.current = false;
+
+        if (!controller.signal.aborted) {
+          setIsLoadingMore(false);
+        }
+      }
     }
   }, [nextCursor]);
 
@@ -111,10 +160,14 @@ export function PromptJobsWorkspace() {
 
     try {
       await createPromptJobs(prompts);
-      await loadPromptJobs();
+      await refreshPromptJobs();
       return true;
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Nie udało się dodać promptów.");
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Nie udało się dodać promptów.",
+      );
       return false;
     } finally {
       setIsSubmitting(false);
@@ -130,7 +183,7 @@ export function PromptJobsWorkspace() {
       />
       <PromptJobsQueue
         errorMessage={loadErrorMessage}
-        hasMore={nextCursor !== null && loadMoreErrorMessage === null}
+        hasMore={nextCursor !== null}
         isLoading={isLoading}
         isLoadingMore={isLoadingMore}
         loadMoreErrorMessage={loadMoreErrorMessage}

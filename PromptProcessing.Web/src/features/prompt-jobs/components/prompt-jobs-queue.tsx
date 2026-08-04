@@ -35,6 +35,7 @@ export function PromptJobsQueue({
   const loadMoreTriggerRef = useInfiniteScroll({
     hasMore,
     isLoading: isLoadingMore,
+    isPaused: loadMoreErrorMessage !== null,
     onLoadMore,
   });
 

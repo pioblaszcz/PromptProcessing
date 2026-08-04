@@ -12,6 +12,7 @@ type ProblemDetails = {
 
 type GetPromptJobsOptions = {
   cursor?: string;
+  signal?: AbortSignal;
   take?: number;
 };
 
@@ -58,7 +59,7 @@ export function createPromptJobs(prompts: string[]): Promise<CreatedPromptJob[]>
   });
 }
 
-export function getPromptJobs({ cursor, take = 20 }: GetPromptJobsOptions = {}): Promise<PromptJobsPage> {
+export function getPromptJobs({ cursor, signal, take = 20 }: GetPromptJobsOptions = {}): Promise<PromptJobsPage> {
   const searchParams = new URLSearchParams({ take: take.toString() });
 
   if (cursor) {
@@ -67,6 +68,7 @@ export function getPromptJobs({ cursor, take = 20 }: GetPromptJobsOptions = {}):
 
   return request<PromptJobsPage>(`/api/prompt-jobs?${searchParams}`, {
     cache: "no-store",
+    signal,
   });
 }
 
